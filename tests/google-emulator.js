@@ -9,7 +9,8 @@ export function startEmulator({ clientId }) {
   const tokens = new Map(); // access token -> email
   const refreshTokens = new Map();
   const sessions = new Map();
-  const stats = { refreshes: 0, revoked: 0 };
+  const stats = { refreshes: 0, revoked: 0, redisSets: 0 };
+  const kv = new Map();
   let seq = 0;
   const id = () => `f${++seq}${crypto.randomBytes(3).toString('hex')}`;
   const add = (name, parent, mimeType = FOLDER, content = null, extra = {}) => {
@@ -57,6 +58,12 @@ export function startEmulator({ clientId }) {
         const at = 'at_' + crypto.randomBytes(8).toString('hex'); tokens.set(at, email);
         return send(res, 200, { access_token: at, expires_in: 3600 });
       }
+    }
+    if (p === '/redis') { // محاكي Upstash Redis REST
+      if (req.headers.authorization !== 'Bearer redis-token') return send(res, 401, { error: 'Unauthorized' });
+      const [cmd, key, val] = JSON.parse(buf.toString());
+      if (cmd === 'GET') return send(res, 200, { result: kv.get(key) ?? null });
+      if (cmd === 'SET') { kv.set(key, val); stats.redisSets++; return send(res, 200, { result: 'OK' }); }
     }
     if (p === '/revoke') { refreshTokens.delete(url.searchParams.get('token')); stats.revoked++; return send(res, 200, {}); }
 
@@ -125,7 +132,7 @@ export function startEmulator({ clientId }) {
   return new Promise((resolve) => server.listen(0, () => {
     base = `http://127.0.0.1:${server.address().port}`;
     resolve({
-      base, files, stats, root, sub, privateFile, server,
+      base, files, stats, kv, root, sub, privateFile, server,
       invalidateAccessTokens: () => tokens.clear(),
       close: () => new Promise((r) => { server.closeAllConnections(); server.close(r); }),
     });

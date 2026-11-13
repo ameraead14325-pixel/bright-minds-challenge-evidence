@@ -7,6 +7,7 @@ import { cleanup } from './db.js';
 import { AppError, sendJson } from './http.js';
 import { handleAuth, getSession } from './auth.js';
 import { handleApi } from './routes.js';
+import { restoreState, schedulePush, flushNow, persistEnabled } from './persist.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' };
@@ -51,6 +52,7 @@ const server = http.createServer(async (req, res) => {
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   const url = new URL(req.url, config.appUrl);
   const started = Date.now();
+  if (req.method !== 'GET' || url.pathname === '/auth/callback') res.on('finish', schedulePush);
   try {
     if (url.pathname === '/healthz') return sendJson(res, 200, { ok: true, configured: configProblems().length === 0 });
     if (url.pathname.startsWith('/auth/')) { if (req.method === 'POST') checkCsrf(req); return await handleAuth(req, res, url); }
@@ -73,6 +75,7 @@ const server = http.createServer(async (req, res) => {
 
 server.requestTimeout = 0; // رفع أجزاء كبيرة قد يستغرق وقتًا
 server.headersTimeout = 60_000;
+if (persistEnabled()) await restoreState();
 server.listen(config.port, () => {
   console.log(`✓ منصة سجل الشواهد تعمل على ${config.appUrl} (المنفذ ${config.port})`);
   const p = configProblems();
@@ -81,4 +84,8 @@ server.listen(config.port, () => {
 cleanup();
 setInterval(cleanup, 6 * 3600 * 1000).unref();
 
-for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); });
+for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, async () => {
+  setTimeout(() => process.exit(0), 8000).unref();
+  try { await flushNow(); } catch { /* */ }
+  server.close(() => process.exit(0));
+});

@@ -5,9 +5,16 @@
 2. **قرص دائم** لملف قاعدة البيانات `DATABASE_PATH`، وإلا ضاعت الإعدادات والربط عند كل إعادة نشر. الملفات نفسها في Drive ولا تضيع أبدًا.
 3. **HTTPS**، وهو إلزامي لـ Google OAuth في الإنتاج (تقدّمه جميع الاستضافات المذكورة تلقائيًا).
 
-## الخيار (أ): Render.com — الأسهل
+## الخيار المجاني (بلا بطاقة): Render Free + Upstash
+خطة Render المجانية بلا قرص دائم، فتحفظ المنصة حالتها (الإعدادات، وربط الأقسام، والمستخدمين، والجلسات، ورموز Google) **مشفّرة** في Upstash Redis المجاني، وتستعيدها تلقائيًا عند كل تشغيل. فهرس الملفات يُعاد بناؤه من Drive بالمزامنة. هذا السيناريو مختبر آليًا في `tests/persist.test.js`.
+1. console.upstash.com: سجّلي بحساب Google، ثم **Create Database** (نوع Redis، منطقة Frankfurt، الخطة Free).
+2. من صفحة القاعدة، قسم **REST API**: انسخي `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN`.
+3. في Render: **New ← Blueprint** والفرع الذي فيه `render.yaml` (الخطة free). أدخلي المتغيرات، ومنها قيمتا Upstash.
+4. العيب الوحيد: الخدمة تنام بعد 15 دقيقة دون استخدام، فيستغرق أول فتح بعدها قرابة دقيقة.
+
+## الخيار (أ): Render.com بخطة مدفوعة وقرص دائم
 1. ارفعي مجلد المشروع إلى مستودع GitHub خاص (ملف `.env` مستبعد تلقائيًا عبر `.gitignore`).
-2. في Render: **New ← Blueprint** واختاري المستودع، فيقرأ `render.yaml` تلقائيًا.
+2. في Render: **New ← Blueprint** واختاري المستودع. عدّلي `render.yaml` إلى `plan: starter` وأضيفي قسم `disk` (mountPath `/var/data`، و`DATABASE_PATH=/var/data/shawahid.db`).
 3. الخطة **Starter** (حوالي 7$ شهريًا)، لأنها تدعم القرص الدائم `/var/data`. الخطة المجانية لا تحفظ قاعدة البيانات، فلا تستخدميها للتشغيل الفعلي.
 4. أدخلي متغيرات البيئة. القيمة `APP_URL` هي الرابط الذي يعطيك إياه Render، مثل `https://sijil-shawahid.onrender.com`.
 5. أضيفي `APP_URL/auth/callback` إلى Redirect URIs في Google Cloud (GOOGLE_SETUP.md، الخطوة 4).

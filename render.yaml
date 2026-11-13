@@ -1,33 +1,34 @@
-# نشر على Render.com (Blueprint). القرص الدائم ضروري لحفظ قاعدة البيانات بين عمليات النشر.
+# نشر على Render.com (Blueprint) — الخطة المجانية.
+# الخطة المجانية بلا قرص دائم، لذلك تُحفظ حالة المنصة مشفّرة في Upstash Redis (مجاني، بلا بطاقة).
 services:
   - type: web
     name: sijil-shawahid
     runtime: node
-    plan: starter            # الخطة المجانية لا تدعم الأقراص الدائمة
+    plan: free
     region: frankfurt
     buildCommand: "echo no-build"
     startCommand: "npm start"
     healthCheckPath: /healthz
-    disk:
-      name: data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 22.14.0
       - key: DATABASE_PATH
-        value: /var/data/shawahid.db
+        value: ./data/shawahid.db
       - key: APP_URL
         sync: false            # مثال: https://sijil-shawahid.onrender.com
+      - key: OWNER_EMAIL
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false            # npm run gen-key
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: OWNER_EMAIL
-        sync: false
       - key: VIEWER_EMAILS
         sync: false
-      - key: TOKEN_ENCRYPTION_KEY
-        sync: false            # npm run gen-key
       - key: ANTHROPIC_API_KEY
         sync: false            # اختياري
