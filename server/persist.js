@@ -22,7 +22,7 @@ const TABLES = {
 };
 
 async function redis(cmd) {
-  const r = await fetch(URL_, { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) });
+  const r = await fetch(URL_, { signal: AbortSignal.timeout(8000), method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.error) throw new Error(`Upstash: ${j.error || r.status}`);
   return j.result;
@@ -46,7 +46,7 @@ export async function restoreState() {
   let raw;
   for (let i = 0; ; i++) {
     try { raw = await redis(['GET', KEY]); break; } catch (e) {
-      if (i >= 5) { console.error('[persist] تعذر الوصول إلى Upstash، الحفظ الخارجي متوقف لهذا التشغيل:', e.message); return false; }
+      if (i >= 3) { console.error('[persist] تعذر الوصول إلى Upstash، الحفظ الخارجي متوقف لهذا التشغيل:', e.message); return false; }
       await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
     }
   }

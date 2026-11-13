@@ -48,7 +48,10 @@ function checkCsrf(req) {
   if (origin && origin !== config.appUrl) throw new AppError(403, 'CSRF', 'طلب من مصدر غير موثوق');
 }
 
+// تبدأ المنصة بالاستماع فورًا (لفحص الصحة)، وتنتظر الطلبات الأخرى حتى تكتمل استعادة الحالة
+let readyResolve; const ready = new Promise((r) => { readyResolve = r; });
 const server = http.createServer(async (req, res) => {
+  if (!req.url.startsWith('/healthz')) await ready;
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   const url = new URL(req.url, config.appUrl);
   const started = Date.now();
@@ -75,8 +78,13 @@ const server = http.createServer(async (req, res) => {
 
 server.requestTimeout = 0; // رفع أجزاء كبيرة قد يستغرق وقتًا
 server.headersTimeout = 60_000;
-if (persistEnabled()) await restoreState();
-server.listen(config.port, () => {
+console.log(`… بدء التشغيل (Node ${process.version})، المنفذ ${config.port}`);
+server.listen(config.port, '0.0.0.0', async () => {
+  if (persistEnabled()) {
+    console.log('… استعادة الحالة المحفوظة من Upstash');
+    try { await restoreState(); } catch (e) { console.error('[persist] خطأ في الاستعادة:', e.message); }
+  }
+  readyResolve();
   console.log(`✓ منصة سجل الشواهد تعمل على ${config.appUrl} (المنفذ ${config.port})`);
   const p = configProblems();
   if (p.length) console.warn('⚠ إعدادات ناقصة:\n  - ' + p.join('\n  - '));
