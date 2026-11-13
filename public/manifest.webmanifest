@@ -1,0 +1,11 @@
+{
+  "name": "سجل شواهد الأداء الوظيفي 1448هـ",
+  "short_name": "سجل الشواهد",
+  "dir": "rtl",
+  "lang": "ar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F6FE",
+  "theme_color": "#1D3FB8",
+  "icons": [{ "src": "/assets/logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
