@@ -20,6 +20,8 @@ if (!/^https:\/\//.test(URL_) && /^https:\/\//.test(TOKEN)) { [URL_, TOKEN] = [T
 const KEY = 'sijil-shawahid-state-v1';
 export const persistEnabled = () => !!(URL_ && TOKEN);
 let ready = false; let lastError = null;
+const shape = (v) => !v ? 'empty' : /^https:\/\/[^/]+\.upstash\.io$/.test(v) ? 'upstash-url' : /^https?:\/\//.test(v) ? 'other-url:' + (v.match(/^https?:\/\/([^/]+)/) || [])[1] : /^[0-9a-f]{64}$/i.test(v) ? 'looks-like-encryption-key' : 'text(' + v.length + ')';
+export const persistDiag = () => ({ urlField: shape((process.env.UPSTASH_REDIS_REST_URL || '').trim()), tokenField: shape((process.env.UPSTASH_REDIS_REST_TOKEN || '').trim()) });
 export const persistStatus = () => !persistEnabled() ? 'not-configured' : !/^https:\/\/[^/]+\.upstash\.io$/.test(URL_) ? 'bad-url' : lastError ? 'error' : ready ? 'ok' : 'starting'; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
 
 const TABLES = {
@@ -62,7 +64,10 @@ export async function restoreState() {
     }
   }
   if (!raw) { ready = true; console.log('[persist] لا توجد حالة محفوظة بعد (تشغيل أول)'); return false; }
-  const s = JSON.parse(decrypt(raw));
+  let s;
+  try { s = JSON.parse(decrypt(raw)); } catch (e) {
+    ready = true; console.error('[persist] تعذر فك الحالة المحفوظة (تغيّر مفتاح التشفير؟) — ستبدأ المنصة بحالة جديدة'); return false;
+  }
   tx(() => {
     for (const t of ['settings', 'users', 'sessions', 'google_tokens', 'uploads', 'audit_log']) { db.prepare(`DELETE FROM ${t}`).run(); insertRows(t, s[t] || []); }
     db.prepare('DELETE FROM files').run();

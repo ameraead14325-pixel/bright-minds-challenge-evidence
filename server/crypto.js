@@ -4,8 +4,12 @@ import { config } from './config.js';
 let key = null;
 function getKey() {
   if (!key) {
-    if (!/^[0-9a-f]{64}$/i.test(config.encryptionKey)) throw new Error('TOKEN_ENCRYPTION_KEY غير صالح');
-    key = Buffer.from(config.encryptionKey, 'hex');
+    if (/^[0-9a-f]{64}$/i.test(config.encryptionKey)) key = Buffer.from(config.encryptionKey, 'hex');
+    else if (config.clientSecret) {
+      // احتياطي: اشتقاق مفتاح ثابت من Client Secret (سرّ موجود في الخادم فقط) إن لم يُضبط TOKEN_ENCRYPTION_KEY صحيحًا
+      key = Buffer.from(crypto.hkdfSync('sha256', config.clientSecret, 'sijil-shawahid', 'token-encryption-v1', 32));
+      console.warn('[crypto] TOKEN_ENCRYPTION_KEY غير صالح؛ يُستخدم مفتاح مشتق من GOOGLE_CLIENT_SECRET');
+    } else throw new Error('TOKEN_ENCRYPTION_KEY غير صالح');
   }
   return key;
 }

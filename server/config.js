@@ -51,6 +51,6 @@ export function configProblems() {
   if (!config.clientId) p.push('GOOGLE_CLIENT_ID غير مضبوط');
   if (!config.clientSecret) p.push('GOOGLE_CLIENT_SECRET غير مضبوط');
   if (!config.ownerEmail) p.push('OWNER_EMAIL غير مضبوط');
-  if (!/^[0-9a-f]{64}$/i.test(config.encryptionKey)) p.push('TOKEN_ENCRYPTION_KEY يجب أن يكون 64 حرفًا hex (npm run gen-key)');
+  if (!/^[0-9a-f]{64}$/i.test(config.encryptionKey) && !config.clientSecret) p.push('TOKEN_ENCRYPTION_KEY يجب أن يكون 64 حرفًا hex (npm run gen-key)');
   return p;
 }
