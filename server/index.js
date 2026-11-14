@@ -7,7 +7,7 @@ import { cleanup } from './db.js';
 import { AppError, sendJson } from './http.js';
 import { handleAuth, getSession } from './auth.js';
 import { handleApi } from './routes.js';
-import { restoreState, schedulePush, flushNow, persistEnabled } from './persist.js';
+import { restoreState, schedulePush, flushNow, persistEnabled, persistStatus } from './persist.js';
 
 const PUBLIC = path.join(ROOT, 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' };
@@ -57,7 +57,7 @@ const server = http.createServer(async (req, res) => {
   const started = Date.now();
   if (req.method !== 'GET' || url.pathname === '/auth/callback') res.on('finish', schedulePush);
   try {
-    if (url.pathname === '/healthz') { const pr = configProblems(); return sendJson(res, 200, { ok: true, configured: pr.length === 0, missing: pr.map((x) => x.split(' ')[0]) }); }
+    if (url.pathname === '/healthz') { const pr = configProblems(); return sendJson(res, 200, { ok: true, configured: pr.length === 0, missing: pr.map((x) => x.split(' ')[0]), storage: persistStatus() }); }
     if (url.pathname.startsWith('/auth/')) { if (req.method === 'POST') checkCsrf(req); return await handleAuth(req, res, url); }
     if (url.pathname.startsWith('/api/')) {
       checkCsrf(req);

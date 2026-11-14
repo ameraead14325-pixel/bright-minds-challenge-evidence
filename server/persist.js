@@ -5,11 +5,14 @@
 import { db, tx } from './db.js';
 import { encrypt, decrypt } from './crypto.js';
 
-const URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
-const TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+let URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+let TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+// تصحيح تلقائي إن لُصقت القيمتان في خانتين معكوستين
+if (!/^https:\/\//.test(URL_) && /^https:\/\//.test(TOKEN)) { [URL_, TOKEN] = [TOKEN.replace(/\/+$/, ''), URL_]; console.warn('[persist] قيمتا Upstash معكوستان، صُحّح ذلك تلقائيًا'); }
 const KEY = 'sijil-shawahid-state-v1';
 export const persistEnabled = () => !!(URL_ && TOKEN);
-let ready = false; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
+let ready = false; let lastError = null;
+export const persistStatus = () => !persistEnabled() ? 'not-configured' : !/^https:\/\/[^/]+\.upstash\.io$/.test(URL_) ? 'bad-url' : lastError ? 'error' : ready ? 'ok' : 'starting'; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
 
 const TABLES = {
   settings: 'SELECT * FROM settings',
@@ -46,7 +49,7 @@ export async function restoreState() {
   let raw;
   for (let i = 0; ; i++) {
     try { raw = await redis(['GET', KEY]); break; } catch (e) {
-      if (i >= 3) { console.error('[persist] تعذر الوصول إلى Upstash، الحفظ الخارجي متوقف لهذا التشغيل:', e.message); return false; }
+      if (i >= 3) { lastError = e.message; console.error('[persist] تعذر الوصول إلى Upstash، الحفظ الخارجي متوقف لهذا التشغيل:', e.message); return false; }
       await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
     }
   }
@@ -67,7 +70,7 @@ let timer = null; let pushing = null; let dirty = false;
 async function push() {
   if (pushing) { dirty = true; return pushing; }
   pushing = (async () => {
-    try { await redis(['SET', KEY, encrypt(JSON.stringify(snapshot()))]); } catch (e) { console.error('[persist] تعذر الحفظ:', e.message); dirty = true; }
+    try { await redis(['SET', KEY, encrypt(JSON.stringify(snapshot()))]); lastError = null; } catch (e) { lastError = e.message; console.error('[persist] تعذر الحفظ:', e.message); dirty = true; }
   })().finally(() => { pushing = null; if (dirty) { dirty = false; schedulePush(); } });
   return pushing;
 }
