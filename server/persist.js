@@ -5,8 +5,9 @@
 import { db, tx } from './db.js';
 import { encrypt, decrypt } from './crypto.js';
 
-let URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
-let TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+const clean = (v) => (v || '').replace(/[​-‏‪-‮⁦-⁩﻿ ]/g, '').trim().replace(/^["']|["']$/g, '');
+let URL_ = clean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/+$/, '');
+let TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
 // قبول عنوان Upstash بصيغ أخرى شائعة: بدون https، أو رابط redis://
 const normUrl = (u) => {
   if (!u) return u;
@@ -20,8 +21,8 @@ if (!/^https:\/\//.test(URL_) && /^https:\/\//.test(TOKEN)) { [URL_, TOKEN] = [T
 const KEY = 'sijil-shawahid-state-v1';
 export const persistEnabled = () => !!(URL_ && TOKEN);
 let ready = false; let lastError = null;
-const shape = (v) => !v ? 'empty' : /^https:\/\/[^/]+\.upstash\.io$/.test(v) ? 'upstash-url' : /^https?:\/\//.test(v) ? 'other-url:' + (v.match(/^https?:\/\/([^/]+)/) || [])[1] : /^[0-9a-f]{64}$/i.test(v) ? 'looks-like-encryption-key' : 'text(' + v.length + ')';
-export const persistDiag = () => ({ urlField: shape((process.env.UPSTASH_REDIS_REST_URL || '').trim()), tokenField: shape((process.env.UPSTASH_REDIS_REST_TOKEN || '').trim()) });
+const shape = (v) => !v ? 'empty' : /^https:\/\/[^/]+\.upstash\.io$/.test(v) ? 'upstash-url' : /^https?:\/\//i.test(v) ? 'other-url:' + (v.match(/^https?:\/\/([^/]+)/) || [])[1] : /^[0-9a-f]{64}$/i.test(v) ? 'looks-like-encryption-key' : 'text(' + v.length + ')';
+export const persistDiag = () => ({ urlField: shape(clean(process.env.UPSTASH_REDIS_REST_URL)), tokenField: shape(clean(process.env.UPSTASH_REDIS_REST_TOKEN)) });
 export const persistStatus = () => !persistEnabled() ? 'not-configured' : !/^https:\/\/[^/]+\.upstash\.io$/.test(URL_) ? 'bad-url' : lastError ? 'error' : ready ? 'ok' : 'starting'; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
 
 const TABLES = {

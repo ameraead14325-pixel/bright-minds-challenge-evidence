@@ -18,7 +18,7 @@ function loadDotEnv() {
 }
 loadDotEnv();
 
-const env = Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])); // إزالة المسافات الزائدة الناتجة عن النسخ واللصق
+const env = Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/[​-‏‪-‮⁦-⁩﻿ ]/g, '').trim() : v])); // إزالة المسافات الزائدة الناتجة عن النسخ واللصق
 const list = (s) => (s || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 
 export const config = {
