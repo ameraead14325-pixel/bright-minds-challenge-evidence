@@ -57,7 +57,7 @@ const server = http.createServer(async (req, res) => {
   const started = Date.now();
   if (req.method !== 'GET' || url.pathname === '/auth/callback') res.on('finish', schedulePush);
   try {
-    if (url.pathname === '/healthz') return sendJson(res, 200, { ok: true, configured: configProblems().length === 0 });
+    if (url.pathname === '/healthz') { const pr = configProblems(); return sendJson(res, 200, { ok: true, configured: pr.length === 0, missing: pr.map((x) => x.split(' ')[0]) }); }
     if (url.pathname.startsWith('/auth/')) { if (req.method === 'POST') checkCsrf(req); return await handleAuth(req, res, url); }
     if (url.pathname.startsWith('/api/')) {
       checkCsrf(req);
