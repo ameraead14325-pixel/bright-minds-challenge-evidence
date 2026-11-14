@@ -7,6 +7,14 @@ import { encrypt, decrypt } from './crypto.js';
 
 let URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
 let TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+// قبول عنوان Upstash بصيغ أخرى شائعة: بدون https، أو رابط redis://
+const normUrl = (u) => {
+  if (!u) return u;
+  const m = u.match(/^rediss?:\/\/[^@]*@([^:/]+)/); if (m) return `https://${m[1]}`;
+  if (/^[\w.-]+\.upstash\.io(:\d+)?\/?$/.test(u)) return `https://${u.replace(/:\d+/, '').replace(/\/$/, '')}`;
+  return u;
+};
+URL_ = normUrl(URL_); TOKEN = /upstash\.io/.test(TOKEN) ? normUrl(TOKEN) : TOKEN;
 // تصحيح تلقائي إن لُصقت القيمتان في خانتين معكوستين
 if (!/^https:\/\//.test(URL_) && /^https:\/\//.test(TOKEN)) { [URL_, TOKEN] = [TOKEN.replace(/\/+$/, ''), URL_]; console.warn('[persist] قيمتا Upstash معكوستان، صُحّح ذلك تلقائيًا'); }
 const KEY = 'sijil-shawahid-state-v1';
