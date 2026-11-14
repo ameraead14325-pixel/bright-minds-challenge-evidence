@@ -50,7 +50,9 @@ export function configProblems() {
   const p = [];
   if (!config.clientId) p.push('GOOGLE_CLIENT_ID غير مضبوط');
   if (!config.clientSecret) p.push('GOOGLE_CLIENT_SECRET غير مضبوط');
-  if (!config.ownerEmail) p.push('OWNER_EMAIL غير مضبوط');
   if (!/^[0-9a-f]{64}$/i.test(config.encryptionKey) && !config.clientSecret) p.push('TOKEN_ENCRYPTION_KEY يجب أن يكون 64 حرفًا hex (npm run gen-key)');
   return p;
 }
+
+export const ownerEmailValid = () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(config.ownerEmail);
+export const maskEmail = (e) => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}***${u.slice(-1)}@${d}` : 'invalid'; };

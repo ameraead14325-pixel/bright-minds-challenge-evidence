@@ -2,7 +2,8 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { config, configProblems, ROOT } from './config.js';
+import { config, configProblems, ROOT, ownerEmailValid, maskEmail } from './config.js';
+import { getSetting } from './db.js';
 import { cleanup } from './db.js';
 import { AppError, sendJson } from './http.js';
 import { handleAuth, getSession } from './auth.js';
@@ -57,7 +58,7 @@ const server = http.createServer(async (req, res) => {
   const started = Date.now();
   if (req.method !== 'GET' || url.pathname === '/auth/callback') res.on('finish', schedulePush);
   try {
-    if (url.pathname === '/healthz') { const pr = configProblems(); return sendJson(res, 200, { ok: true, configured: pr.length === 0, missing: pr.map((x) => x.split(' ')[0]), storage: persistStatus(), keyLength: config.encryptionKeyLength, upstash: persistStatus() === 'ok' ? undefined : persistDiag() }); }
+    if (url.pathname === '/healthz') { const pr = configProblems(); return sendJson(res, 200, { ok: true, configured: pr.length === 0, missing: pr.map((x) => x.split(' ')[0]), storage: persistStatus(), keyLength: config.encryptionKeyLength, owner: ownerEmailValid() ? maskEmail(config.ownerEmail) : (getSetting('claimed_owner') ? 'claimed:' + maskEmail(getSetting('claimed_owner')) : 'first-login-claims'), upstash: persistStatus() === 'ok' ? undefined : persistDiag() }); }
     if (url.pathname.startsWith('/auth/')) { if (req.method === 'POST') checkCsrf(req); return await handleAuth(req, res, url); }
     if (url.pathname.startsWith('/api/')) {
       checkCsrf(req);

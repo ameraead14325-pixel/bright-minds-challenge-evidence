@@ -1,6 +1,6 @@
 // تسجيل الدخول بحساب Google + ربط Drive + إدارة الجلسات والصلاحيات
-import { config, configProblems } from './config.js';
-import { db, now, audit } from './db.js';
+import { config, configProblems, ownerEmailValid } from './config.js';
+import { db, now, audit, getSetting, setSetting } from './db.js';
 import { randomId, sha256 } from './crypto.js';
 import { cookie, parseCookies, AppError } from './http.js';
 import { authUrl, exchangeCode, saveDriveTokens } from './google.js';
@@ -11,7 +11,7 @@ const SID = secure ? '__Host-sjl_sid' : 'sjl_sid';
 export function roleFor(email) {
   email = (email || '').toLowerCase();
   if (!email) return null;
-  if (email === config.ownerEmail) return 'owner';
+  if (ownerEmailValid() ? email === config.ownerEmail : email === getSetting('claimed_owner')) return 'owner';
   if (config.viewerEmails.includes(email)) return 'viewer';
   const u = db.prepare("SELECT role FROM users WHERE email = ? AND role = 'viewer'").get(email);
   return u ? 'viewer' : null;
@@ -53,7 +53,11 @@ export async function handleAuth(req, res, url) {
     if (url.searchParams.get('error')) return fail('تم إلغاء تسجيل الدخول أو رفض الصلاحيات');
     try {
       const { tokens, profile } = await exchangeCode(url.searchParams.get('code') || '');
-      const role = roleFor(profile.email);
+      let role = roleFor(profile.email);
+      // إن لم يُضبط OWNER_EMAIL ببريد صالح: أول من يسجّل الدخول (ويجب أن يكون مستخدم اختبار مسموحًا في Google) يصبح المالكة
+      if (!role && !ownerEmailValid() && !getSetting('claimed_owner')) {
+        setSetting('claimed_owner', profile.email); role = 'owner'; audit(profile.email, 'auth.owner_claimed');
+      }
       if (!role) { audit(profile.email, 'auth.denied'); return fail(`الحساب ${profile.email} غير مصرّح له بالدخول إلى المنصة`); }
       if (st.purpose === 'drive') {
         if (role !== 'owner') return fail('ربط Google Drive متاح لصاحبة المنصة فقط');
