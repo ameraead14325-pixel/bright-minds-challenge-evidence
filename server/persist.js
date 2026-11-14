@@ -6,24 +6,28 @@ import { db, tx } from './db.js';
 import { encrypt, decrypt } from './crypto.js';
 
 const clean = (v) => (v || '').replace(/[​-‏‪-‮⁦-⁩﻿ ]/g, '').trim().replace(/^["']|["']$/g, '');
-let URL_ = clean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/+$/, '');
-let TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
-// قبول عنوان Upstash بصيغ أخرى شائعة: بدون https، أو رابط redis://
-const normUrl = (u) => {
-  if (!u) return u;
-  const m = u.match(/^rediss?:\/\/[^@]*@([^:/]+)/); if (m) return `https://${m[1]}`;
-  if (/^[\w.-]+\.upstash\.io(:\d+)?\/?$/.test(u)) return `https://${u.replace(/:\d+/, '').replace(/\/$/, '')}`;
-  return u;
-};
-URL_ = normUrl(URL_); TOKEN = /upstash\.io/.test(TOKEN) ? normUrl(TOKEN) : TOKEN;
-// تصحيح تلقائي إن لُصقت القيمتان في خانتين معكوستين
-if (!/^https:\/\//.test(URL_) && /^https:\/\//.test(TOKEN)) { [URL_, TOKEN] = [TOKEN.replace(/\/+$/, ''), URL_]; console.warn('[persist] قيمتا Upstash معكوستان، صُحّح ذلك تلقائيًا'); }
+// استخراج مرن لعنوان Upstash والتوكن مهما كانت صيغة اللصق (رابط، مضيف فقط، سطور ‎.env، أو خانتان معكوستان)
+const RAW_URL = clean(process.env.UPSTASH_REDIS_REST_URL);
+const RAW_TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
+function extract() {
+  const all = `${RAW_URL}\n${RAW_TOKEN}`;
+  const hostM = all.match(/([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.upstash\.io)/);
+  const url = hostM ? `https://${hostM[1]}` : (/^https?:\/\/\S+$/.test(RAW_URL) && !/onrender\.com/i.test(RAW_URL) ? RAW_URL.replace(/\/+$/, '') : '');
+  const named = all.match(/UPSTASH_REDIS_REST_TOKEN\s*[=:]\s*["']?([A-Za-z0-9_=+\/-]{20,})/);
+  if (named) return { url, token: named[1] };
+  const candidates = [RAW_TOKEN, RAW_URL].filter((v) => v && !/upstash\.io|https?:\/\//i.test(v)).map((v) => v.replace(/^[A-Z_]+\s*[=:]\s*/, '').replace(/["'\s]/g, ''));
+  const token = candidates.sort((a, b) => b.length - a.length)[0] || '';
+  return { url, token };
+}
+let { url: URL_, token: TOKEN } = extract();
 const KEY = 'sijil-shawahid-state-v1';
-export const persistEnabled = () => !!(URL_ && TOKEN);
+export const persistEnabled = () => !!(RAW_URL || RAW_TOKEN);
+const usable = () => !!(URL_ && TOKEN);
 let ready = false; let lastError = null;
 const shape = (v) => !v ? 'empty' : /^https:\/\/[^/]+\.upstash\.io$/.test(v) ? 'upstash-url' : /^https?:\/\//i.test(v) ? 'other-url:' + (v.match(/^https?:\/\/([^/]+)/) || [])[1] : /^[0-9a-f]{64}$/i.test(v) ? 'looks-like-encryption-key' : 'text(' + v.length + ')';
-export const persistDiag = () => ({ urlField: shape(clean(process.env.UPSTASH_REDIS_REST_URL)), tokenField: shape(clean(process.env.UPSTASH_REDIS_REST_TOKEN)) });
-export const persistStatus = () => !persistEnabled() ? 'not-configured' : !/^https:\/\/[^/]+\.upstash\.io$/.test(URL_) ? 'bad-url' : lastError ? 'error' : ready ? 'ok' : 'starting'; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
+const flags = (v) => ({ len: v.length, https: /https?:\/\//i.test(v), upstashHost: /upstash\.io/i.test(v), onrender: /onrender\.com/i.test(v), equals: v.includes('='), quote: /["']/.test(v), space: /\s/.test(v) });
+export const persistDiag = () => ({ urlField: flags(RAW_URL), tokenField: flags(RAW_TOKEN), foundUrl: !!URL_, foundTokenLen: TOKEN.length });
+export const persistStatus = () => !persistEnabled() ? 'not-configured' : !URL_ ? 'bad-url' : !TOKEN ? 'no-token' : lastError ? 'error' : ready ? 'ok' : 'starting'; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
 
 const TABLES = {
   settings: 'SELECT * FROM settings',
@@ -56,7 +60,7 @@ function insertRows(table, rows) {
 }
 
 export async function restoreState() {
-  if (!persistEnabled()) return false;
+  if (!usable()) return false;
   let raw;
   for (let i = 0; ; i++) {
     try { raw = await redis(['GET', KEY]); break; } catch (e) {
@@ -89,12 +93,12 @@ async function push() {
   return pushing;
 }
 export function schedulePush() {
-  if (!persistEnabled() || !ready) return;
+  if (!usable() || !ready) return;
   clearTimeout(timer);
   timer = setTimeout(push, 1500);
 }
 export async function flushNow() {
-  if (!persistEnabled() || !ready) return;
+  if (!usable() || !ready) return;
   clearTimeout(timer);
   await push();
 }
