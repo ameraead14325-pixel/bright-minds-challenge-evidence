@@ -18,7 +18,7 @@ function loadDotEnv() {
 }
 loadDotEnv();
 
-const env = process.env;
+const env = Object.fromEntries(Object.entries(process.env).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])); // إزالة المسافات الزائدة الناتجة عن النسخ واللصق
 const list = (s) => (s || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 
 export const config = {
@@ -28,7 +28,7 @@ export const config = {
   clientSecret: env.GOOGLE_CLIENT_SECRET || '',
   ownerEmail: (env.OWNER_EMAIL || '').trim().toLowerCase(),
   viewerEmails: list(env.VIEWER_EMAILS),
-  encryptionKey: env.TOKEN_ENCRYPTION_KEY || '',
+  encryptionKey: (env.TOKEN_ENCRYPTION_KEY || '').replace(/\s+/g, ''),
   dbPath: path.resolve(ROOT, env.DATABASE_PATH || './data/shawahid.db'),
   anthropicKey: env.ANTHROPIC_API_KEY || '',
   anthropicModel: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',

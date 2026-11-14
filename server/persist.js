@@ -5,8 +5,8 @@
 import { db, tx } from './db.js';
 import { encrypt, decrypt } from './crypto.js';
 
-const URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/+$/, '');
-const TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const URL_ = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, '');
+const TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
 const KEY = 'sijil-shawahid-state-v1';
 export const persistEnabled = () => !!(URL_ && TOKEN);
 let ready = false; // لا نرفع أي حالة قبل التأكد من استعادة الحالة السابقة، حتى لا نمسحها بحالة فارغة
