@@ -574,9 +574,9 @@ async function tabDrive(t) {
   const me = S.me; const d = me.drive;
   const step = !d.connected ? 1 : !me.root ? 2 : 3;
   t.innerHTML = `<div class="steps">
-      <div class="step ${d.connected ? 'done' : 'cur'}"><span class="n">${d.connected ? '✓' : 1}</span><div><b>ربط حساب Google Drive</b><div class="small muted">${d.connected ? esc(d.email) : 'تسجيل دخول آمن OAuth 2.0'}</div></div></div>
-      <div class="step ${me.root ? 'done' : step === 2 ? 'cur' : ''}"><span class="n">${me.root ? '✓' : 2}</span><div><b>اختيار المجلد الرئيسي</b><div class="small muted">${me.root ? esc(me.root.name) : 'مجلد سجل الشواهد في حسابك'}</div></div></div>
-      <div class="step ${me.mappedCount === 11 ? 'done' : step === 3 ? 'cur' : ''}"><span class="n">${me.mappedCount === 11 ? '✓' : 3}</span><div><b>ربط الأقسام بالمجلدات</b><div class="small muted">${me.mappedCount} من 11 قسمًا</div></div></div>
+      <div class="step ${d.connected ? 'done' : 'cur'}" data-step="1" role="button" tabindex="0"><span class="n">${d.connected ? '✓' : 1}</span><div><b>ربط حساب Google Drive</b><div class="small muted">${d.connected ? esc(d.email) : 'تسجيل دخول آمن OAuth 2.0'}</div></div></div>
+      <div class="step ${me.root ? 'done' : step === 2 ? 'cur' : ''}" data-step="2" role="button" tabindex="0"><span class="n">${me.root ? '✓' : 2}</span><div><b>اختيار المجلد الرئيسي</b><div class="small muted">${me.root ? esc(me.root.name) : 'مجلد سجل الشواهد في حسابك'}</div></div></div>
+      <div class="step ${me.mappedCount === 11 ? 'done' : step === 3 ? 'cur' : ''}" data-step="3" role="button" tabindex="0"><span class="n">${me.mappedCount === 11 ? '✓' : 3}</span><div><b>ربط الأقسام بالمجلدات</b><div class="small muted">${me.mappedCount} من 11 قسمًا</div></div></div>
     </div>
     <section class="card" style="margin-top:14px"><h3>${icon('cloud')} حالة الاتصال</h3>
       ${d.connected ? `<p style="margin:0">مرتبط بحساب <b>${esc(d.email)}</b> منذ ${dateTime(d.connectedAt)}.</p>` : d.needsReauth ? '<div class="alert bad">' + icon('alert') + '<div>انتهت صلاحية الربط أو أُلغيت من حساب Google. أعيدي الربط — ستبقى إعدادات المجلدات كما هي.</div></div>' : '<p style="margin:0">لم يتم الربط بعد.</p>'}
@@ -597,6 +597,21 @@ async function tabDrive(t) {
     if (!await confirmDialog({ title: 'إلغاء الربط مع Google Drive', message: 'سيُلغى إذن المنصة على حسابك وتُحذف الرموز من الخادم. ملفاتك في Drive لن تتأثر إطلاقًا. يمكنك إعادة الربط لاحقًا.', ok: 'إلغاء الربط', danger: true })) return;
     try { await api('POST', '/api/drive/disconnect'); await refreshMe(); toast('تم إلغاء الربط', 'ok'); tabDrive(t); } catch (e) { toastErr(e); }
   };
+  // جعل بطاقات الخطوات قابلة للضغط
+  const stepGo = (n) => {
+    if (n === 1) { location.href = '/auth/connect-drive'; return; }
+    if (!d.connected) { toast('اربطي حساب Google Drive أولًا', 'bad'); return; }
+    if (n === 2) { rootBtn && rootBtn.click(); return; }
+    const m = $('#mapping', t);
+    if (!me.root) toast('اختاري المجلد الرئيسي أولًا');
+    m.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    m.classList.add('flash'); setTimeout(() => m.classList.remove('flash'), 1600);
+  };
+  $$('[data-step]', t).forEach((el) => {
+    const n = Number(el.dataset.step);
+    el.onclick = () => stepGo(n);
+    el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); stepGo(n); } };
+  });
   if (me.root && d.connected) renderMapping($('#mapping', t));
 }
 

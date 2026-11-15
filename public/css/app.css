@@ -242,6 +242,10 @@ button.chip { cursor: pointer; } button.chip:hover, .chip.on { border-color: var
 .step { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
 .step .n { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; background: var(--blue-l); color: var(--blue-d); flex: none; font-family: var(--f-head); }
 .step.done .n { background: var(--ok); color: #fff; }
+.step[data-step] { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.step[data-step]:active { transform: scale(.98); }
+#mapping { scroll-margin-top: 90px; }
+#mapping.flash { box-shadow: 0 0 0 4px rgba(42, 85, 232, .35); transition: box-shadow .3s; }
 .step.cur { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(42, 85, 232, .1); }
 .fbrowser { border: 1px solid var(--line); border-radius: 14px; max-height: 340px; overflow: auto; }
 .fbrowser button { display: flex; width: 100%; gap: 10px; align-items: center; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); background: #fff; cursor: pointer; text-align: right; }
